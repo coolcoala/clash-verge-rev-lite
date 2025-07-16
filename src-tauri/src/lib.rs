@@ -7,6 +7,7 @@ mod module;
 mod process;
 mod state;
 mod utils;
+use crate::utils::resolve::{DEFAULT_HEIGHT, DEFAULT_WIDTH};
 use crate::{
     core::hotkey,
     process::AsyncHandler,
@@ -21,6 +22,8 @@ use tauri_plugin_autostart::MacosLauncher;
 use tauri_plugin_deep_link::DeepLinkExt;
 use tokio::time::{timeout, Duration};
 use utils::logging::Type;
+
+const WINDOW_ASPECT_RATIO: f64 = DEFAULT_WIDTH as f64 / DEFAULT_HEIGHT as f64;
 
 /// A global singleton handle to the application.
 pub struct AppHandleManager {
@@ -372,6 +375,28 @@ pub fn run() {
         tauri::RunEvent::WindowEvent { label, event, .. } => {
             if label == "main" {
                 match event {
+                    tauri::WindowEvent::Resized(size) => {
+                        if let Some(window) = app_handle.get_webview_window(&label) {
+                            let width = size.width as f64;
+                            let height = size.height as f64;
+                            let expected_height = width / WINDOW_ASPECT_RATIO;
+                            let expected_width = height * WINDOW_ASPECT_RATIO;
+                            let diff_h = (height - expected_height).abs();
+                            let diff_w = (width - expected_width).abs();
+                            const TOLERANCE: f64 = 1.0;
+                            if diff_h > TOLERANCE && diff_h > diff_w {
+                                let _ = window.set_size(tauri::Size::Logical(tauri::LogicalSize {
+                                    width,
+                                    height: expected_height.round(),
+                                }));
+                            } else if diff_w > TOLERANCE {
+                                let _ = window.set_size(tauri::Size::Logical(tauri::LogicalSize {
+                                    width: expected_width.round(),
+                                    height,
+                                }));
+                            }
+                        }
+                    }
                     tauri::WindowEvent::CloseRequested { api, .. } => {
                         #[cfg(target_os = "macos")]
                         AppHandleManager::global().set_activation_policy_accessory();

@@ -22,16 +22,16 @@ use std::{
 use tauri::{AppHandle, Manager};
 use tokio::net::TcpListener;
 
-use tauri::Url;
 use crate::config::PrfOption;
+use tauri::Url;
 //#[cfg(not(target_os = "linux"))]
 // use window_shadows::set_shadow;
 
 pub static VERSION: OnceCell<String> = OnceCell::new();
 
 // 定义默认窗口尺寸常量
-const DEFAULT_WIDTH: u32 = 940;
-const DEFAULT_HEIGHT: u32 = 700;
+pub const DEFAULT_WIDTH: u32 = 940;
+pub const DEFAULT_HEIGHT: u32 = 700;
 
 // 添加全局UI准备就绪标志
 static UI_READY: OnceCell<Arc<RwLock<bool>>> = OnceCell::new();
@@ -557,7 +557,9 @@ pub async fn resolve_scheme(param: String) -> Result<()> {
         for (key, value) in link_parsed.query_pairs() {
             match key.as_ref() {
                 "name" => name = Some(value.into_owned()),
-                "url" => url_param = Some(percent_decode_str(&value).decode_utf8_lossy().to_string()),
+                "url" => {
+                    url_param = Some(percent_decode_str(&value).decode_utf8_lossy().to_string())
+                }
                 "hwid" => use_hwid = value == "1" || value == "true",
                 _ => {}
             }
