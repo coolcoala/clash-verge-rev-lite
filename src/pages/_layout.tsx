@@ -26,6 +26,7 @@ import { SidebarProvider, useSidebar } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/layout/sidebar";
 import { useZoomControls } from "@/hooks/useZoomControls";
 import { HwidErrorDialog } from "@/components/profile/hwid-error-dialog";
+import { BaseLoadingOverlay } from "@/components/base";
 
 const appWindow = getCurrentWebviewWindow();
 export let portableFlag = false;
@@ -45,13 +46,14 @@ const handleNoticeMessage = (
 
   switch (status) {
     case "import_sub_url::ok":
-      mutate("getProfiles");
+      mutate("getProfiles").then(r => {});
       navigate("/");
       showNotice("success", t("Import Subscription Successful"));
       sessionStorage.setItem("activateProfile", msg);
       break;
     case "import_sub_url::error":
       console.log(msg);
+      // TODO: refactor please
       if (
         msg.toLowerCase().includes("device") ||
         msg.toLowerCase().includes("устройств")
@@ -156,7 +158,7 @@ const handleNoticeMessage = (
 const Layout = () => {
   const mode = useThemeMode();
   useZoomControls();
-  const isDark = mode === "light" ? false : true;
+  const isDark = mode !== "light";
   const { t } = useTranslation();
   useCustomTheme();
   const { verge } = useVerge();
@@ -168,6 +170,9 @@ const Layout = () => {
   const routersEles = useRoutes(routers);
   const { addListener, setupCloseListener } = useListen();
   const initRef = useRef(false);
+
+  // TODO: вот тут если что реализация спина на реакте, можно её использовать в другом туду..
+  const [updatingCount, setUpdatingCount] = useState(0);
 
   const handleNotice = useCallback(
     (payload: [string, string]) => {
@@ -197,29 +202,36 @@ const Layout = () => {
   // Setting up a listener
   useEffect(() => {
     const listeners = [
-      addListener("verge://refresh-clash-config", async () => {
+      addListener("koala://refresh-clash-config", async () => {
         await getAxios(true);
-        mutate("getProxies");
-        mutate("getVersion");
-        mutate("getClashConfig");
-        mutate("getProxyProviders");
+        await mutate("getProxies");
+        await mutate("getVersion");
+        await mutate("getClashConfig");
+        await mutate("getProxyProviders");
       }),
 
-      addListener("verge://refresh-verge-config", () => {
-        mutate("getVergeConfig");
-        mutate("getSystemProxy");
-        mutate("getAutotemProxy");
+      addListener("koala://refresh-verge-config", () => {
+        mutate("getVergeConfig").then(r => {});
+        mutate("getSystemProxy").then(r => {});
+        mutate("getAutotemProxy").then(r => {});
       }),
 
-      addListener("verge://notice-message", ({ payload }) =>
+      addListener("koala://notice-message", ({ payload }) =>
         handleNotice(payload as [string, string]),
       ),
+      // Loader: profile update start/end
+      addListener("profile-update-started", () => {
+        setUpdatingCount((n) => n + 1);
+      }),
+      addListener("profile-update-completed", () => {
+        setUpdatingCount((n) => Math.max(0, n - 1));
+      }),
     ];
 
     const setupWindowListeners = async () => {
       const [hideUnlisten, showUnlisten] = await Promise.all([
-        listen("verge://hide-window", () => appWindow.hide()),
-        listen("verge://show-window", () => appWindow.show()),
+        listen("koala://hide-window", () => appWindow.hide()),
+        listen("koala://show-window", () => appWindow.show()),
       ]);
 
       return () => {
@@ -228,7 +240,7 @@ const Layout = () => {
       };
     };
 
-    setupCloseListener();
+    setupCloseListener().then(r => {});
     const cleanupWindow = setupWindowListeners();
 
     return () => {
@@ -396,7 +408,7 @@ const Layout = () => {
     const setupEventListener = async () => {
       try {
         console.log("[Layout] Start listening for startup completion events");
-        const unlisten = await listen("verge://startup-completed", () => {
+        return await listen("koala://startup-completed", () => {
           if (!hasEventTriggered) {
             console.log(
               "[Layout] Receive startup completion event, start initialization",
@@ -405,7 +417,6 @@ const Layout = () => {
             performInitialization();
           }
         });
-        return unlisten;
       } catch (err) {
         console.error(
           "[Layout] Failed to listen for startup completion event:",
@@ -425,7 +436,7 @@ const Layout = () => {
             "[Layout] Backend is ready, start initialization immediately",
           );
           hasEventTriggered = true;
-          performInitialization();
+          await performInitialization();
         }
       } catch (err) {
         console.log(
@@ -440,7 +451,7 @@ const Layout = () => {
           "[Layout] Standby initialization trigger: initialization not started within 1.5 seconds",
         );
         hasEventTriggered = true;
-        performInitialization();
+        performInitialization().then(r => {});
       }
     }, 1500);
 
@@ -470,7 +481,7 @@ const Layout = () => {
   useEffect(() => {
     if (language) {
       dayjs.locale(language === "ru" ? "ru-ru" : language);
-      i18next.changeLanguage(language);
+      i18next.changeLanguage(language).then(r => {});
     }
   }, [language]);
 
@@ -497,6 +508,7 @@ const Layout = () => {
             {routersEles &&
               React.cloneElement(routersEles, { key: location.pathname })}
           </div>
+          <BaseLoadingOverlay isLoading={updatingCount > 0} className="fixed" />
         </main>
         <HwidErrorDialog />
       </>

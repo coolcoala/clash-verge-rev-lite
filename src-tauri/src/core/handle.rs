@@ -116,17 +116,17 @@ impl NotificationSystem {
 
                                     let (event_name_str, payload_result) = match event {
                                         FrontendEvent::RefreshClash => {
-                                            ("verge://refresh-clash-config", Ok(serde_json::json!("yes")))
+                                            ("koala://refresh-clash-config", Ok(serde_json::json!("yes")))
                                         }
                                         FrontendEvent::RefreshVerge => {
-                                            ("verge://refresh-verge-config", Ok(serde_json::json!("yes")))
+                                            ("koala://refresh-verge-config", Ok(serde_json::json!("yes")))
                                         }
                                         FrontendEvent::NoticeMessage { status, message } => {
                                             match serde_json::to_value((status, message)) {
-                                                Ok(p) => ("verge://notice-message", Ok(p)),
+                                                Ok(p) => ("koala://notice-message", Ok(p)),
                                                 Err(e) => {
                                                     log::error!("Failed to serialize NoticeMessage payload: {e}");
-                                                    ("verge://notice-message", Err(e))
+                                                    ("koala://notice-message", Err(e))
                                                 }
                                             }
                                         }
@@ -134,10 +134,10 @@ impl NotificationSystem {
                                             ("profile-changed", Ok(serde_json::json!(current_profile_id)))
                                         }
                                         FrontendEvent::TimerUpdated { profile_index } => {
-                                            ("verge://timer-updated", Ok(serde_json::json!(profile_index)))
+                                            ("koala://timer-updated", Ok(serde_json::json!(profile_index)))
                                         }
                                         FrontendEvent::StartupCompleted => {
-                                            ("verge://startup-completed", Ok(serde_json::json!(null)))
+                                            ("koala://startup-completed", Ok(serde_json::json!(null)))
                                         }
                                         FrontendEvent::ProfileUpdateStarted { uid } => {
                                             ("profile-update-started", Ok(serde_json::json!({ "uid": uid })))

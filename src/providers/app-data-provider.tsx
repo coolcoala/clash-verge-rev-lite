@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useMemo } from "react";
 import { useVerge } from "@/hooks/use-verge";
-import useSWR from "swr";
+import useSWR, { mutate as swrMutate } from "swr";
 import useSWRSubscription from "swr/subscription";
 import {
   getProxies,
@@ -77,6 +77,8 @@ export const AppDataProvider = ({
   // 监听profile和clash配置变更事件
   useEffect(() => {
     let profileUnlisten: Promise<() => void> | undefined;
+    let tauriUnlistenRefreshClash: Promise<() => void> | undefined;
+    let tauriUnlistenRefreshKoala: Promise<() => void> | undefined;
     let lastProfileId: string | null = null;
     let lastUpdateTime = 0;
     const refreshThrottle = 500;
@@ -120,6 +122,9 @@ export const AppDataProvider = ({
               console.log("[AppDataProvider] 刷新前端代理数据");
               await refreshProxy();
 
+              // Ensure profiles list is up-to-date across the app
+              await swrMutate("getProfiles");
+
               console.log("[AppDataProvider] Profile切换的代理数据刷新完成");
             } catch (error) {
               console.error("[AppDataProvider] 强制刷新代理缓存失败:", error);
@@ -127,6 +132,8 @@ export const AppDataProvider = ({
               refreshProxy().catch((e) =>
                 console.warn("[AppDataProvider] 普通刷新也失败:", e),
               );
+              // Still trigger a profiles refresh even if proxy refresh failed
+              await swrMutate("getProfiles");
             }
           }, 0);
         });
@@ -156,6 +163,8 @@ export const AppDataProvider = ({
 
                 await refreshPromise;
                 await refreshProxy();
+                // Also refresh profiles in case config changes affect them
+                await swrMutate("getProfiles");
               } catch (error) {
                 console.error(
                   "[AppDataProvider] Clash刷新时强制刷新代理缓存失败:",
@@ -164,19 +173,36 @@ export const AppDataProvider = ({
                 refreshProxy().catch((e) =>
                   console.warn("[AppDataProvider] Clash刷新普通刷新也失败:", e),
                 );
+                await swrMutate("getProfiles");
               }
             }, 0);
           }
         };
 
+        // Listen via DOM (if re-dispatched) and via Tauri event bus for reliability
         window.addEventListener(
-          "verge://refresh-clash-config",
+          "koala://refresh-clash-config",
           handleRefreshClash,
+        );
+        tauriUnlistenRefreshClash = listen(
+          "koala://refresh-clash-config",
+          () => {
+            handleRefreshClash();
+          },
+        );
+
+        // Also listen for general Verge config refresh to update profiles
+        tauriUnlistenRefreshKoala = listen(
+          "koala://refresh-verge-config",
+          () => {
+            console.log("[AppDataProvider] Verge config refresh event");
+            swrMutate("getProfiles");
+          },
         );
 
         return () => {
           window.removeEventListener(
-            "verge://refresh-clash-config",
+            "koala://refresh-clash-config",
             handleRefreshClash,
           );
         };
@@ -190,6 +216,8 @@ export const AppDataProvider = ({
 
     return () => {
       profileUnlisten?.then((unlisten) => unlisten()).catch(console.error);
+      tauriUnlistenRefreshClash?.then((u) => u()).catch(console.error);
+      tauriUnlistenRefreshKoala?.then((u) => u()).catch(console.error);
       cleanupPromise.then((cleanup) => cleanup());
     };
   }, [refreshProxy]);

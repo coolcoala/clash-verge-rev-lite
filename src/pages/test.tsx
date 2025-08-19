@@ -110,16 +110,16 @@ const TestPage = () => {
       const newList = testList.map((x) =>
         x.uid === uid ? { ...x, ...patch } : x,
       );
-      mutateVerge({ ...verge, test_list: newList }, false);
+      mutateVerge({ ...verge, test_list: newList }, false).then(r => {});
     } else {
-      mutateVerge();
+      mutateVerge().then(r => {});
     }
   };
 
   const onDeleteTestListItem = (uid: string) => {
     const newList = testList.filter((x) => x.uid !== uid);
-    patchVerge({ test_list: newList });
-    mutateVerge({ ...verge, test_list: newList }, false);
+    patchVerge({ test_list: newList }).then(r => {});
+    mutateVerge({ ...verge, test_list: newList }, false).then(r => {});
   };
 
   const onDragEnd = async (event: DragEndEvent) => {
@@ -136,7 +136,7 @@ const TestPage = () => {
 
   useEffect(() => {
     if (verge && !verge.test_list) {
-      patchVerge({ test_list: testList });
+      patchVerge({ test_list: testList }).then(r => {});
     }
   }, [verge, patchVerge, testList]);
 
@@ -163,7 +163,7 @@ const TestPage = () => {
         <div className="flex justify-between items-center">
           <h2 className="text-2xl font-semibold tracking-tight">{t("Test")}</h2>
           <div className="flex items-center gap-2">
-            <Button size="sm" onClick={() => emit("verge://test-all")}>
+            <Button size="sm" onClick={() => emit("koala://test-all")}>
               <Play className="mr-2 h-4 w-4" />
               {t("Test All")}
             </Button>

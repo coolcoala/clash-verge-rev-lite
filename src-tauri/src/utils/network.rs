@@ -61,6 +61,13 @@ impl NetworkManager {
         &NETWORK_MANAGER
     }
 
+    pub fn spawn<Fut>(&self, fut: Fut)
+    where
+        Fut: std::future::Future<Output = ()> + Send + 'static,
+    {
+        std::mem::drop(self.runtime.spawn(fut));
+    }
+
     /// 初始化网络客户端
     pub fn init(&self) {
         self.init.call_once(|| {
@@ -409,11 +416,25 @@ impl NetworkManager {
         let watchdog = tokio::spawn(async move {
             tokio::time::sleep(Duration::from_secs(timeout_duration)).await;
             let _ = cancel_tx.send(());
-            logging!(warn, Type::Network, true, "请求超时取消: {}", url_clone);
+            logging!(
+                warn,
+                Type::Network,
+                true,
+                "Request timed out, cancel: {}",
+                url_clone
+            );
         });
 
         let result = tokio::select! {
-            result = request.send() => result,
+            result = async {
+                logging!(info, Type::Network, true, "Start sending HTTP request: {}", url);
+                let r = request.send().await;
+                match &r {
+                    Ok(_) => { logging!(info, Type::Network, true, "HTTP request finished: {url}"); },
+                    Err(e) => { logging!(warn, Type::Network, true, "HTTP request failed: {url} -> {e}"); },
+                }
+                r
+            } => result,
             _ = cancel_rx => {
                 self.record_connection_error(&format!("Request interrupted for: {url}"));
                 return Err(anyhow::anyhow!("Request interrupted after {} seconds", timeout_duration));

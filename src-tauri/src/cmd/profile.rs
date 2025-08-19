@@ -184,7 +184,10 @@ pub async fn create_profile(item: PrfItem, file_data: Option<String>) -> CmdResu
 /// 更新配置文件
 #[tauri::command]
 pub async fn update_profile(index: String, option: Option<PrfOption>) -> CmdResult {
-    wrap_err!(feat::update_profile(index, option, Some(true)).await)
+    handle::Handle::notify_profile_update_started(index.clone());
+    let result = feat::update_profile(index.clone(), option, Some(true), Some(false)).await;
+    handle::Handle::notify_profile_update_completed(index);
+    wrap_err!(result)
 }
 
 /// 删除配置文件

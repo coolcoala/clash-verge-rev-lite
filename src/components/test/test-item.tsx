@@ -92,9 +92,9 @@ export const TestItem = (props: Props) => {
     let unlistenFn: UnlistenFn | null = null;
     const setupListener = async () => {
       if (unlistenFn) unlistenFn();
-      unlistenFn = await addListener("verge://test-all", onDelay);
+      unlistenFn = await addListener("koala://test-all", onDelay);
     };
-    setupListener();
+    setupListener().then(r => {});
     return () => {
       unlistenFn?.();
     };
