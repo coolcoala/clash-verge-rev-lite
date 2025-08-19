@@ -163,7 +163,7 @@ export const TestCard = () => {
   );
 
   const handleTestAll = useCallback(() => {
-    emit("koala://test-all").then(r => {});
+    emit("koala://test-all").then(_ => {});
   }, []);
 
   const handleCreateTest = useCallback(() => {

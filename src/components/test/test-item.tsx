@@ -94,7 +94,7 @@ export const TestItem = (props: Props) => {
       if (unlistenFn) unlistenFn();
       unlistenFn = await addListener("koala://test-all", onDelay);
     };
-    setupListener().then(r => {});
+    setupListener().then(_ => {});
     return () => {
       unlistenFn?.();
     };

@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState, useCallback } from "react";
-import { useLockFn } from "ahooks";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { emit } from "@tauri-apps/api/event";
@@ -110,16 +109,16 @@ const TestPage = () => {
       const newList = testList.map((x) =>
         x.uid === uid ? { ...x, ...patch } : x,
       );
-      mutateVerge({ ...verge, test_list: newList }, false).then(r => {});
+      mutateVerge({ ...verge, test_list: newList }, false).then(_ => {});
     } else {
-      mutateVerge().then(r => {});
+      mutateVerge().then(_ => {});
     }
   };
 
   const onDeleteTestListItem = (uid: string) => {
     const newList = testList.filter((x) => x.uid !== uid);
-    patchVerge({ test_list: newList }).then(r => {});
-    mutateVerge({ ...verge, test_list: newList }, false).then(r => {});
+    patchVerge({ test_list: newList }).then(_ => {});
+    mutateVerge({ ...verge, test_list: newList }, false).then(_ => {});
   };
 
   const onDragEnd = async (event: DragEndEvent) => {
@@ -136,7 +135,7 @@ const TestPage = () => {
 
   useEffect(() => {
     if (verge && !verge.test_list) {
-      patchVerge({ test_list: testList }).then(r => {});
+      patchVerge({ test_list: testList }).then(_ => {});
     }
   }, [verge, patchVerge, testList]);
 

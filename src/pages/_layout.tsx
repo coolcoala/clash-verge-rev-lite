@@ -46,7 +46,7 @@ const handleNoticeMessage = (
 
   switch (status) {
     case "import_sub_url::ok":
-      mutate("getProfiles").then(r => {});
+      mutate("getProfiles").then(_ => {});
       navigate("/");
       showNotice("success", t("Import Subscription Successful"));
       sessionStorage.setItem("activateProfile", msg);
@@ -211,9 +211,9 @@ const Layout = () => {
       }),
 
       addListener("koala://refresh-verge-config", () => {
-        mutate("getVergeConfig").then(r => {});
-        mutate("getSystemProxy").then(r => {});
-        mutate("getAutotemProxy").then(r => {});
+        mutate("getVergeConfig").then(_ => {});
+        mutate("getSystemProxy").then(_ => {});
+        mutate("getAutotemProxy").then(_ => {});
       }),
 
       addListener("koala://notice-message", ({ payload }) =>
@@ -240,7 +240,7 @@ const Layout = () => {
       };
     };
 
-    setupCloseListener().then(r => {});
+    setupCloseListener().then(_ => {});
     const cleanupWindow = setupWindowListeners();
 
     return () => {
@@ -451,7 +451,7 @@ const Layout = () => {
           "[Layout] Standby initialization trigger: initialization not started within 1.5 seconds",
         );
         hasEventTriggered = true;
-        performInitialization().then(r => {});
+        performInitialization().then(_ => {});
       }
     }, 1500);
 
@@ -481,7 +481,7 @@ const Layout = () => {
   useEffect(() => {
     if (language) {
       dayjs.locale(language === "ru" ? "ru-ru" : language);
-      i18next.changeLanguage(language).then(r => {});
+      i18next.changeLanguage(language).then(_ => {});
     }
   }, [language]);
 
