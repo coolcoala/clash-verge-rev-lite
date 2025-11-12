@@ -7,7 +7,11 @@ mod module;
 mod process;
 mod state;
 mod utils;
-use crate::{core::hotkey, process::AsyncHandler, utils::resolve};
+use crate::{
+    core::{event_driven_proxy::EventDrivenProxyManager, hotkey},
+    process::AsyncHandler,
+    utils::resolve,
+};
 use config::Config;
 use std::sync::{Mutex, Once};
 use tauri::AppHandle;
@@ -98,15 +102,35 @@ pub fn run() {
 	#[allow(unused_mut)]
 	let mut builder = tauri::Builder::default()
 		.plugin(tauri_plugin_single_instance::init(|_app, argv, _cwd| {
-			// Handle deep link when a second instance is invoked: forward URL to the running instance
-			if let Some(url) = argv
-				.iter()
-				.find(|a| a.starts_with("clash://") || a.starts_with("koala-clash://"))
-				.cloned()
-			{
-				// Robust scheduling avoids races with lightweight/window
-				resolve::schedule_handle_deep_link(url);
-			}
+			// When a second instance is invoked, always show the window
+			AsyncHandler::spawn(move || async move {
+				// Exit lightweight mode if active
+				if crate::module::lightweight::is_in_lightweight_mode() {
+					logging!(info, Type::System, true, "Second instance detected: exiting lightweight mode");
+					crate::module::lightweight::exit_lightweight_mode();
+					// Wait for lightweight mode to fully exit
+					for _ in 0..50 {
+						if !crate::module::lightweight::is_in_lightweight_mode() {
+							break;
+						}
+						tokio::time::sleep(tokio::time::Duration::from_millis(20)).await;
+					}
+				}
+				
+				// Show the main window
+				logging!(info, Type::System, true, "Second instance detected: showing main window");
+				let _ = crate::utils::window_manager::WindowManager::show_main_window();
+				
+				// Handle deep link if present
+				if let Some(url) = argv
+					.iter()
+					.find(|a| a.starts_with("clash://") || a.starts_with("koala-clash://"))
+					.cloned()
+				{
+					logging!(info, Type::System, true, "Second instance with deep link: {}", url);
+					resolve::schedule_handle_deep_link(url);
+				}
+			});
 		}))
 		.plugin(tauri_plugin_notification::init())
 		.plugin(tauri_plugin_updater::Builder::new().build())
@@ -400,11 +424,20 @@ pub fn run() {
             }
         }
         tauri::RunEvent::Exit => {
-            // avoid duplicate cleanup
-            if core::handle::Handle::global().is_exiting() {
-                return;
+            let handle = core::handle::Handle::global();
+
+            if handle.is_exiting() {
+                logging!(
+                    debug,
+                    Type::System,
+                    "Exit event triggered, but exit flow already executed, skip duplicate cleanup"
+                );
+            } else {
+                logging!(debug, Type::System, "Exit event triggered, executing cleanup flow");
+                handle.set_is_exiting();
+                EventDrivenProxyManager::global().notify_app_stopping();
+                feat::clean();
             }
-            feat::clean();
         }
         tauri::RunEvent::WindowEvent { label, event, .. } => {
             if label == "main" {
