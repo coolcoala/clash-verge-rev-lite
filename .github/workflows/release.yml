@@ -209,8 +209,16 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
+          # Rename .exe files
           $files = Get-ChildItem ".\src-tauri\target\${{ matrix.target }}\release\bundle\nsis\*-setup.exe"
           foreach ($file in $files) {
+            $newName = $file.Name -replace "_${{steps.build.outputs.appVersion}}_", "_" 
+            Rename-Item $file.FullName $newName
+          }
+          
+          # Rename .exe.sig files
+          $sigFiles = Get-ChildItem ".\src-tauri\target\${{ matrix.target }}\release\bundle\nsis\*-setup.exe.sig"
+          foreach ($file in $sigFiles) {
             $newName = $file.Name -replace "_${{steps.build.outputs.appVersion}}_", "_" 
             Rename-Item $file.FullName $newName
           }
