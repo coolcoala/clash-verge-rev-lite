@@ -6,8 +6,8 @@ on:
   # workflow_dispatch:
   push:
     # 应当限制在 main 分支上触发发布。
-    branches:
-      - main
+#    branches:
+#      - main
     # 应当限制 v*.*.* 的 tag 触发发布。
     tags:
       - "v*.*.*"
