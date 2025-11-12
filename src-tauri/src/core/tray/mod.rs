@@ -184,11 +184,19 @@ impl Tray {
     }
 
     pub fn init(&self) -> Result<()> {
+        if handle::Handle::global().is_exiting() {
+            log::debug!(target: "app", "Application is exiting, skip tray initialization");
+            return Ok(());
+        }
         Ok(())
     }
 
     /// 更新托盘点击行为
     pub fn update_click_behavior(&self) -> Result<()> {
+        if handle::Handle::global().is_exiting() {
+            log::debug!(target: "app", "Application is exiting, skip tray click behavior update");
+            return Ok(());
+        }
         let app_handle = handle::Handle::global().app_handle().unwrap();
         let tray_event = { Config::verge().latest().tray_event.clone() };
         let tray_event: String = tray_event.unwrap_or("main_window".into());
@@ -202,6 +210,10 @@ impl Tray {
 
     /// 更新托盘菜单
     pub fn update_menu(&self) -> Result<()> {
+        if handle::Handle::global().is_exiting() {
+            log::debug!(target: "app", "Application is exiting, skip tray menu update");
+            return Ok(());
+        }
         // 调整最小更新间隔，确保状态及时刷新
         const MIN_UPDATE_INTERVAL: Duration = Duration::from_millis(100);
 
@@ -291,6 +303,10 @@ impl Tray {
     /// 更新托盘图标
     #[cfg(target_os = "macos")]
     pub fn update_icon(&self, _rate: Option<Rate>) -> Result<()> {
+        if handle::Handle::global().is_exiting() {
+            log::debug!(target: "app", "Application is exiting, skip tray icon update");
+            return Ok(());
+        }
         let app_handle = match handle::Handle::global().app_handle() {
             Some(handle) => handle,
             None => {
@@ -328,6 +344,10 @@ impl Tray {
 
     #[cfg(not(target_os = "macos"))]
     pub fn update_icon(&self, _rate: Option<Rate>) -> Result<()> {
+        if handle::Handle::global().is_exiting() {
+            log::debug!(target: "app", "Application is exiting, skip tray icon update");
+            return Ok(());
+        }
         let app_handle = match handle::Handle::global().app_handle() {
             Some(handle) => handle,
             None => {
@@ -361,6 +381,10 @@ impl Tray {
 
     /// 更新托盘显示状态的函数
     pub fn update_tray_display(&self) -> Result<()> {
+        if handle::Handle::global().is_exiting() {
+            log::debug!(target: "app", "Application is exiting, skip tray display update");
+            return Ok(());
+        }
         let app_handle = handle::Handle::global().app_handle().unwrap();
         let _tray = app_handle.tray_by_id("main").unwrap();
 
@@ -372,6 +396,10 @@ impl Tray {
 
     /// 更新托盘提示
     pub fn update_tooltip(&self) -> Result<()> {
+        if handle::Handle::global().is_exiting() {
+            log::debug!(target: "app", "Application is exiting, skip tray tooltip update");
+            return Ok(());
+        }
         let app_handle = match handle::Handle::global().app_handle() {
             Some(handle) => handle,
             None => {
@@ -429,6 +457,10 @@ impl Tray {
     }
 
     pub fn update_part(&self) -> Result<()> {
+        if handle::Handle::global().is_exiting() {
+            log::debug!(target: "app", "Application is exiting, skip tray partial update");
+            return Ok(());
+        }
         self.update_menu()?;
         self.update_icon(None)?;
         self.update_tooltip()?;
@@ -442,6 +474,10 @@ impl Tray {
     pub fn unsubscribe_traffic(&self) {}
 
     pub fn create_tray_from_handle(&self, app_handle: &AppHandle) -> Result<()> {
+        if handle::Handle::global().is_exiting() {
+            log::debug!(target: "app", "Application is exiting, skip tray creation");
+            return Ok(());
+        }
         log::info!(target: "app", "Creating system tray from AppHandle");
 
         // 获取图标
@@ -509,6 +545,10 @@ impl Tray {
 
     // 托盘统一的状态更新函数
     pub fn update_all_states(&self) -> Result<()> {
+        if handle::Handle::global().is_exiting() {
+            log::debug!(target: "app", "Application is exiting, skip tray state update");
+            return Ok(());
+        }
         // 确保所有状态更新完成
         self.update_menu()?;
         self.update_icon(None)?;

@@ -4,7 +4,7 @@ use tokio::sync::{mpsc, oneshot};
 use tokio::time::{sleep, timeout, Duration};
 
 use crate::config::{Config, IVerge};
-use crate::core::async_proxy_query::AsyncProxyQuery;
+use crate::core::{async_proxy_query::AsyncProxyQuery, handle};
 use crate::logging_error;
 use crate::utils::logging::Type;
 use once_cell::sync::Lazy;
@@ -231,6 +231,11 @@ impl EventDrivenProxyManager {
             }
             ProxyEvent::AppStopping => {
                 log::info!(target: "app", "Cleaning up proxy state");
+                Self::update_state_timestamp(state, |s| {
+                    s.sys_enabled = false;
+                    s.pac_enabled = false;
+                    s.is_healthy = false;
+                });
             }
         }
     }
@@ -279,6 +284,10 @@ impl EventDrivenProxyManager {
     }
 
     async fn check_and_restore_proxy(state: &Arc<RwLock<ProxyState>>) {
+        if handle::Handle::global().is_exiting() {
+            log::debug!(target: "app", "Application is exiting, skip system proxy guard check");
+            return;
+        }
         let (sys_enabled, pac_enabled) = {
             let s = state.read();
             (s.sys_enabled, s.pac_enabled)
@@ -298,6 +307,11 @@ impl EventDrivenProxyManager {
     }
 
     async fn check_and_restore_pac_proxy(state: &Arc<RwLock<ProxyState>>) {
+        if handle::Handle::global().is_exiting() {
+            log::debug!(target: "app", "Application is exiting, skip PAC proxy restore check");
+            return;
+        }
+
         let current = Self::get_auto_proxy_with_timeout().await;
         let expected = Self::get_expected_pac_config();
 
@@ -320,6 +334,11 @@ impl EventDrivenProxyManager {
     }
 
     async fn check_and_restore_sys_proxy(state: &Arc<RwLock<ProxyState>>) {
+        if handle::Handle::global().is_exiting() {
+            log::debug!(target: "app", "Application is exiting, skip system proxy restore check");
+            return;
+        }
+
         let current = Self::get_sys_proxy_with_timeout().await;
         let expected = Self::get_expected_sys_proxy();
 
@@ -344,6 +363,11 @@ impl EventDrivenProxyManager {
     }
 
     async fn enable_system_proxy(state: &Arc<RwLock<ProxyState>>) {
+        if handle::Handle::global().is_exiting() {
+            log::debug!(target: "app", "Application is exiting, skip enabling system proxy");
+            return;
+        }
+
         log::info!(target: "app", "Enabling system proxy");
 
         let pac_enabled = state.read().pac_enabled;
@@ -373,6 +397,11 @@ impl EventDrivenProxyManager {
     }
 
     async fn switch_proxy_mode(state: &Arc<RwLock<ProxyState>>, to_pac: bool) {
+        if handle::Handle::global().is_exiting() {
+            log::debug!(target: "app", "Application is exiting, skip proxy mode switch");
+            return;
+        }
+
         log::info!(target: "app", "Switching to {} mode", if to_pac { "PAC" } else { "HTTP Proxy" });
 
         if to_pac {
@@ -507,6 +536,10 @@ impl EventDrivenProxyManager {
 
         #[cfg(target_os = "windows")]
         {
+            if handle::Handle::global().is_exiting() {
+                log::debug!(target: "app", "Application is exiting, skip PAC proxy restore");
+                return;
+            }
             Self::execute_sysproxy_command(&["pac", expected_url]).await;
         }
     }
@@ -519,6 +552,10 @@ impl EventDrivenProxyManager {
 
         #[cfg(target_os = "windows")]
         {
+            if handle::Handle::global().is_exiting() {
+                log::debug!(target: "app", "Application is exiting, skip system proxy restore");
+                return;
+            }
             let address = format!("{}:{}", expected.host, expected.port);
             Self::execute_sysproxy_command(&["global", &address, &expected.bypass]).await;
         }
@@ -526,6 +563,15 @@ impl EventDrivenProxyManager {
 
     #[cfg(target_os = "windows")]
     async fn execute_sysproxy_command(args: &[&str]) {
+        if handle::Handle::global().is_exiting() {
+            log::debug!(
+                target: "app",
+                "Application is exiting, cancel calling sysproxy.exe, args: {:?}",
+                args
+            );
+            return;
+        }
+
         use crate::utils::dirs;
         #[allow(unused_imports)] // creation_flags必须
         use std::os::windows::process::CommandExt;

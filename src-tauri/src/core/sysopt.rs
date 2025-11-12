@@ -69,6 +69,10 @@ impl Sysopt {
 
     /// init the sysproxy
     pub async fn update_sysproxy(&self) -> Result<()> {
+        if Handle::global().is_exiting() {
+            log::debug!(target: "app", "Application is exiting, skip updating sysproxy");
+            return Ok(());
+        }
         let _lock = self.update_sysproxy.lock().await;
 
         let port = Config::verge()
@@ -185,6 +189,10 @@ impl Sysopt {
 
     /// reset the sysproxy
     pub async fn reset_sysproxy(&self) -> Result<()> {
+        if Handle::global().is_exiting() {
+            log::debug!(target: "app", "Application is exiting, skip resetting sysproxy");
+            return Ok(());
+        }
         let _lock = self.reset_sysproxy.lock().await;
         //直接关闭所有代理
         #[cfg(not(target_os = "windows"))]

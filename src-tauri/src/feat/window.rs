@@ -2,7 +2,7 @@
 use crate::AppHandleManager;
 use crate::{
     config::Config,
-    core::{handle, sysopt, CoreManager},
+    core::{event_driven_proxy::EventDrivenProxyManager, handle, sysopt, CoreManager},
     logging,
     module::mihomo::MihomoManager,
     utils::logging::Type,
@@ -69,6 +69,7 @@ pub fn quit() {
     // 获取应用句柄并设置退出标志
     let app_handle = handle::Handle::global().app_handle().unwrap();
     handle::Handle::global().set_is_exiting();
+    EventDrivenProxyManager::global().notify_app_stopping();
 
     // 优先关闭窗口，提供立即反馈
     if let Some(window) = handle::Handle::global().get_window() {
