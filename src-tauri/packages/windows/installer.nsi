@@ -460,6 +460,22 @@ FunctionEnd
     !endif
   ${EndIf}
 
+  ; Check if koala-mihomo-alpha-smart.exe is running
+  !if "${INSTALLMODE}" == "currentUser"
+    nsis_tauri_utils::FindProcessCurrentUser "koala-mihomo-alpha-smart.exe"
+  !else
+    nsis_tauri_utils::FindProcess "koala-mihomo-alpha-smart.exe"
+  !endif
+  Pop $R0
+  ${If} $R0 = 0
+    DetailPrint "Kill koala-mihomo-alpha-smart.exe..."
+    !if "${INSTALLMODE}" == "currentUser"
+      nsis_tauri_utils::KillProcessCurrentUser "koala-mihomo-alpha-smart.exe"
+    !else
+      nsis_tauri_utils::KillProcess "koala-mihomo-alpha-smart.exe"
+    !endif
+  ${EndIf}
+
   ; Check if koala-mihomo.exe is running
   !if "${INSTALLMODE}" == "currentUser"
     nsis_tauri_utils::FindProcessCurrentUser "koala-mihomo.exe"

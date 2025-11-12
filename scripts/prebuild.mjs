@@ -74,6 +74,20 @@ const META_ALPHA_MAP = {
   "linux-loong64": "mihomo-linux-loong64",
 };
 
+const META_ALPHA_SMART_VERSION_URL =
+  "https://github.com/vernesong/mihomo/releases/download/Prerelease-Alpha/version.txt";
+const META_ALPHA_SMART_URL_PREFIX =
+  "https://github.com/vernesong/mihomo/releases/download/Prerelease-Alpha";
+let META_ALPHA_SMART_VERSION;
+
+const META_ALPHA_SMART_MAP = Object.fromEntries(
+  Object.entries(META_ALPHA_MAP).map(([key, baseName]) => {
+    const smartName = baseName.replace(/^mihomo-/, "mihomo-alpha-smart-");
+    const uniqueNames = Array.from(new Set([smartName, baseName]));
+    return [key, uniqueNames];
+  }),
+);
+
 // Fetch the latest alpha release version from the version.txt file
 async function getLatestAlphaVersion() {
   const options = {};
@@ -97,6 +111,32 @@ async function getLatestAlphaVersion() {
     log_info(`Latest alpha version: ${META_ALPHA_VERSION}`);
   } catch (error) {
     log_error("Error fetching latest alpha version:", error.message);
+    process.exit(1);
+  }
+}
+
+async function getLatestAlphaSmartVersion() {
+  const options = {};
+
+  const httpProxy =
+    process.env.HTTP_PROXY ||
+    process.env.http_proxy ||
+    process.env.HTTPS_PROXY ||
+    process.env.https_proxy;
+
+  if (httpProxy) {
+    options.agent = new HttpsProxyAgent(httpProxy);
+  }
+  try {
+    const response = await fetch(META_ALPHA_SMART_VERSION_URL, {
+      ...options,
+      method: "GET",
+    });
+    let v = await response.text();
+    META_ALPHA_SMART_VERSION = v.trim();
+    log_info(`Latest alpha smart version: ${META_ALPHA_SMART_VERSION}`);
+  } catch (error) {
+    log_error("Error fetching latest alpha smart version:", error.message);
     process.exit(1);
   }
 }
@@ -152,14 +192,18 @@ async function getLatestReleaseVersion() {
  * check available
  */
 if (!META_MAP[`${platform}-${arch}`]) {
-  throw new Error(
-    `clash meta alpha unsupported platform "${platform}-${arch}"`,
-  );
+  throw new Error(`clash meta unsupported platform "${platform}-${arch}"`);
 }
 
 if (!META_ALPHA_MAP[`${platform}-${arch}`]) {
   throw new Error(
     `clash meta alpha unsupported platform "${platform}-${arch}"`,
+  );
+}
+
+if (!META_ALPHA_SMART_MAP[`${platform}-${arch}`]) {
+  throw new Error(
+    `clash meta alpha smart unsupported platform "${platform}-${arch}"`,
   );
 }
 
@@ -170,16 +214,35 @@ function clashMetaAlpha() {
   const name = META_ALPHA_MAP[`${platform}-${arch}`];
   const isWin = platform === "win32";
   const urlExt = isWin ? "zip" : "gz";
-  const downloadURL = `${META_ALPHA_URL_PREFIX}/${name}-${META_ALPHA_VERSION}.${urlExt}`;
-  const exeFile = `${name}${isWin ? ".exe" : ""}`;
-  const zipFile = `${name}-${META_ALPHA_VERSION}.${urlExt}`;
+  const candidates = [name].map((candidate) => ({
+    cacheKey: candidate,
+    zipFile: `${candidate}-${META_ALPHA_VERSION}.${urlExt}`,
+    exeFile: `${candidate}${isWin ? ".exe" : ""}`,
+    downloadURL: `${META_ALPHA_URL_PREFIX}/${candidate}-${META_ALPHA_VERSION}.${urlExt}`,
+  }));
 
   return {
     name: "koala-mihomo-alpha",
     targetFile: `koala-mihomo-alpha-${SIDECAR_HOST}${isWin ? ".exe" : ""}`,
-    exeFile,
-    zipFile,
-    downloadURL,
+    candidates,
+  };
+}
+
+function clashMetaAlphaSmart() {
+  const names = META_ALPHA_SMART_MAP[`${platform}-${arch}`];
+  const isWin = platform === "win32";
+  const urlExt = isWin ? "zip" : "gz";
+  const candidates = names.map((candidate) => ({
+    cacheKey: candidate,
+    zipFile: `${candidate}-${META_ALPHA_SMART_VERSION}.${urlExt}`,
+    exeFile: `${candidate}${isWin ? ".exe" : ""}`,
+    downloadURL: `${META_ALPHA_SMART_URL_PREFIX}/${candidate}-${META_ALPHA_SMART_VERSION}.${urlExt}`,
+  }));
+
+  return {
+    name: "koala-mihomo-alpha-smart",
+    targetFile: `koala-mihomo-alpha-smart-${SIDECAR_HOST}${isWin ? ".exe" : ""}`,
+    candidates,
   };
 }
 
@@ -187,23 +250,24 @@ function clashMeta() {
   const name = META_MAP[`${platform}-${arch}`];
   const isWin = platform === "win32";
   const urlExt = isWin ? "zip" : "gz";
-  const downloadURL = `${META_URL_PREFIX}/${META_VERSION}/${name}-${META_VERSION}.${urlExt}`;
-  const exeFile = `${name}${isWin ? ".exe" : ""}`;
-  const zipFile = `${name}-${META_VERSION}.${urlExt}`;
+  const candidates = [name].map((candidate) => ({
+    cacheKey: candidate,
+    zipFile: `${candidate}-${META_VERSION}.${urlExt}`,
+    exeFile: `${candidate}${isWin ? ".exe" : ""}`,
+    downloadURL: `${META_URL_PREFIX}/${META_VERSION}/${candidate}-${META_VERSION}.${urlExt}`,
+  }));
 
   return {
     name: "koala-mihomo",
     targetFile: `koala-mihomo-${SIDECAR_HOST}${isWin ? ".exe" : ""}`,
-    exeFile,
-    zipFile,
-    downloadURL,
+    candidates,
   };
 }
 /**
  * download sidecar and rename
  */
 async function resolveSidecar(binInfo) {
-  const { name, targetFile, zipFile, exeFile, downloadURL } = binInfo;
+  const { name, targetFile, candidates } = binInfo;
 
   const sidecarDir = path.join(cwd, "src-tauri", "sidecar");
   const sidecarPath = path.join(sidecarDir, targetFile);
@@ -211,71 +275,95 @@ async function resolveSidecar(binInfo) {
   await fsp.mkdir(sidecarDir, { recursive: true });
   if (!FORCE && fs.existsSync(sidecarPath)) return;
 
-  const tempDir = path.join(TEMP_DIR, name);
-  const tempZip = path.join(tempDir, zipFile);
-  const tempExe = path.join(tempDir, exeFile);
+  if (!Array.isArray(candidates) || candidates.length === 0) {
+    throw new Error(`No download candidates provided for "${name}"`);
+  }
 
-  await fsp.mkdir(tempDir, { recursive: true });
-  try {
-    if (!fs.existsSync(tempZip)) {
-      await downloadFile(downloadURL, tempZip);
-    }
+  const baseTempDir = path.join(TEMP_DIR, name);
+  await fsp.mkdir(baseTempDir, { recursive: true });
 
-    if (zipFile.endsWith(".zip")) {
-      const zip = new AdmZip(tempZip);
-      zip.getEntries().forEach((entry) => {
-        log_debug(`"${name}" entry name`, entry.entryName);
-      });
-      zip.extractAllTo(tempDir, true);
-      await fsp.rename(tempExe, sidecarPath);
-      log_success(`unzip finished: "${name}"`);
-    } else if (zipFile.endsWith(".tgz")) {
-      // tgz
-      await fsp.mkdir(tempDir, { recursive: true });
-      await extract({
-        cwd: tempDir,
-        file: tempZip,
-        //strip: 1, // 可能需要根据实际的 .tgz 文件结构调整
-      });
-      const files = await fsp.readdir(tempDir);
-      log_debug(`"${name}" files in tempDir:`, files);
-      const extractedFile = files.find((file) => file.startsWith("虚空终端-"));
-      if (extractedFile) {
-        const extractedFilePath = path.join(tempDir, extractedFile);
-        await fsp.rename(extractedFilePath, sidecarPath);
-        log_success(`"${name}" file renamed to "${sidecarPath}"`);
-        execSync(`chmod 755 ${sidecarPath}`);
-        log_success(`chmod binary finished: "${name}"`);
-      } else {
-        throw new Error(`Expected file not found in ${tempDir}`);
-      }
-    } else {
-      // gz
-      const readStream = fs.createReadStream(tempZip);
-      const writeStream = fs.createWriteStream(sidecarPath);
-      await new Promise((resolve, reject) => {
-        const onError = (error) => {
-          log_error(`"${name}" gz failed:`, error.message);
-          reject(error);
-        };
-        readStream
-          .pipe(zlib.createGunzip().on("error", onError))
-          .pipe(writeStream)
-          .on("finish", () => {
-            execSync(`chmod 755 ${sidecarPath}`);
-            log_success(`chmod binary finished: "${name}"`);
-            resolve();
-          })
-          .on("error", onError);
-      });
-    }
-  } catch (err) {
-    // 需要删除文件
-    await fsp.rm(sidecarPath, { recursive: true, force: true });
-    throw err;
-  } finally {
-    // delete temp dir
+  let resolved = false;
+  let lastError = null;
+
+  for (const candidate of candidates) {
+    const candidateKey = (candidate.cacheKey || candidate.zipFile || name)
+      .replace(/[^a-zA-Z0-9_.-]/g, "_");
+    const tempDir = path.join(baseTempDir, candidateKey);
+    const tempZip = path.join(tempDir, candidate.zipFile);
+    const tempExe = path.join(tempDir, candidate.exeFile);
+
     await fsp.rm(tempDir, { recursive: true, force: true });
+    await fsp.mkdir(tempDir, { recursive: true });
+
+    try {
+      if (!fs.existsSync(tempZip)) {
+        await downloadFile(candidate.downloadURL, tempZip);
+      }
+
+      if (candidate.zipFile.endsWith(".zip")) {
+        const zip = new AdmZip(tempZip);
+        zip.getEntries().forEach((entry) => {
+          log_debug(`"${name}" entry name`, entry.entryName);
+        });
+        zip.extractAllTo(tempDir, true);
+        await fsp.rename(tempExe, sidecarPath);
+        log_success(`unzip finished: "${name}" via ${candidate.zipFile}`);
+      } else if (candidate.zipFile.endsWith(".tgz")) {
+        await extract({
+          cwd: tempDir,
+          file: tempZip,
+        });
+        const files = await fsp.readdir(tempDir);
+        log_debug(`"${name}" files in tempDir:`, files);
+        const extractedFile = files.find((file) => file.startsWith("虚空终端-"));
+        if (extractedFile) {
+          const extractedFilePath = path.join(tempDir, extractedFile);
+          await fsp.rename(extractedFilePath, sidecarPath);
+          log_success(`"${name}" file renamed to "${sidecarPath}"`);
+          execSync(`chmod 755 ${sidecarPath}`);
+          log_success(`chmod binary finished: "${name}"`);
+        } else {
+          throw new Error(`Expected file not found in ${tempDir}`);
+        }
+      } else {
+        const readStream = fs.createReadStream(tempZip);
+        const writeStream = fs.createWriteStream(sidecarPath);
+        await new Promise((resolve, reject) => {
+          const onError = (error) => {
+            log_error(`"${name}" gz failed:`, error.message);
+            reject(error);
+          };
+          readStream
+            .pipe(zlib.createGunzip().on("error", onError))
+            .pipe(writeStream)
+            .on("finish", () => {
+              execSync(`chmod 755 ${sidecarPath}`);
+              log_success(`chmod binary finished: "${name}"`);
+              resolve();
+            })
+            .on("error", onError);
+        });
+      }
+
+      resolved = true;
+      lastError = null;
+      break;
+    } catch (err) {
+      lastError = err;
+      log_error(
+        `Failed to resolve candidate "${candidate.downloadURL}" for "${name}":`,
+        err.message,
+      );
+      await fsp.rm(sidecarPath, { recursive: true, force: true });
+    } finally {
+      await fsp.rm(tempDir, { recursive: true, force: true });
+    }
+  }
+
+  await fsp.rm(baseTempDir, { recursive: true, force: true });
+
+  if (!resolved) {
+    throw lastError || new Error(`Unable to resolve sidecar for "${name}"`);
   }
 }
 
@@ -340,6 +428,11 @@ async function resolveResource(binInfo) {
     method: "GET",
     headers: { "Content-Type": "application/octet-stream" },
   });
+  if (!response.ok) {
+    throw new Error(
+      `Failed to download ${url}: ${response.status} ${response.statusText}`,
+    );
+  }
   const buffer = await response.arrayBuffer();
   await fsp.writeFile(path, new Uint8Array(buffer));
 
@@ -492,6 +585,14 @@ const tasks = [
     name: "koala-mihomo-alpha",
     func: () =>
       getLatestAlphaVersion().then(() => resolveSidecar(clashMetaAlpha())),
+    retry: 5,
+  },
+  {
+    name: "koala-mihomo-alpha-smart",
+    func: () =>
+      getLatestAlphaSmartVersion().then(() =>
+        resolveSidecar(clashMetaAlphaSmart()),
+      ),
     retry: 5,
   },
   {

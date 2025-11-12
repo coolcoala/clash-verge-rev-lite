@@ -38,6 +38,7 @@ async function resolvePortable() {
   zip.addLocalFile(path.join(releaseDir, "koala-clash.exe"));
   zip.addLocalFile(path.join(releaseDir, "koala-mihomo.exe"));
   zip.addLocalFile(path.join(releaseDir, "koala-mihomo-alpha.exe"));
+  zip.addLocalFile(path.join(releaseDir, "koala-mihomo-alpha-smart.exe"));
   zip.addLocalFolder(path.join(releaseDir, "resources"), "resources");
   zip.addLocalFolder(configDir, ".config");
 

@@ -110,6 +110,7 @@ impl ChainSupport {
                     | (ChainSupport::Clash, "clash")
                     | (ChainSupport::ClashMeta, "koala-mihomo")
                     | (ChainSupport::ClashMetaAlpha, "koala-mihomo-alpha")
+                    | (ChainSupport::ClashMetaAlpha, "koala-mihomo-alpha-smart")
             ),
             None => true,
         }

@@ -537,7 +537,7 @@ impl CoreManager {
             child_guard.as_ref().map(|child| child.pid())
         };
 
-        let target_processes = ["koala-mihomo", "koala-mihomo-alpha"];
+        let target_processes = ["koala-mihomo", "koala-mihomo-alpha", "koala-mihomo-alpha-smart"];
 
         // 并行查找所有目标进程
         let mut process_futures = Vec::new();

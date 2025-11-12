@@ -18,7 +18,8 @@
     "publisher": "Koala Clash",
     "externalBin": [
       "sidecar/koala-mihomo",
-      "sidecar/koala-mihomo-alpha"
+      "sidecar/koala-mihomo-alpha",
+      "sidecar/koala-mihomo-alpha-smart"
     ],
     "copyright": "GNU General Public License v3.0",
     "category": "DeveloperTool",

@@ -238,7 +238,7 @@ pub struct IVergeTheme {
 
 impl IVerge {
     /// 有效的clash核心名称
-    pub const VALID_CLASH_CORES: &'static [&'static str] = &["koala-mihomo", "koala-mihomo-alpha"];
+    pub const VALID_CLASH_CORES: &'static [&'static str] = &["koala-mihomo", "koala-mihomo-alpha", "koala-mihomo-alpha-smart"];
 
     /// 验证并修正配置文件中的clash_core值
     pub fn validate_and_fix_config() -> Result<()> {

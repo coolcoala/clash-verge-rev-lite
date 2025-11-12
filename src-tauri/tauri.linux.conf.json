@@ -28,7 +28,8 @@
       "./resources/install-service",
       "./resources/uninstall-service",
       "./sidecar/koala-mihomo",
-      "./sidecar/koala-mihomo-alpha"
+      "./sidecar/koala-mihomo-alpha",
+      "./sidecar/koala-mihomo-alpha-smart"
     ]
   }
 }
