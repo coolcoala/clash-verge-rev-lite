@@ -187,7 +187,7 @@ function clashMeta() {
   const name = META_MAP[`${platform}-${arch}`];
   const isWin = platform === "win32";
   const urlExt = isWin ? "zip" : "gz";
-  const downloadURL = `${META_URL_PREFIX}/Prerelease-xhttp-release/${name}-${META_VERSION}.${urlExt}`;
+  const downloadURL = `${META_URL_PREFIX}/Prerelease-xhttp/${name}-${META_VERSION}.${urlExt}`;
   const exeFile = `${name}${isWin ? ".exe" : ""}`;
   const zipFile = `${name}-${META_VERSION}.${urlExt}`;
 
