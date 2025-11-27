@@ -103,7 +103,7 @@ async function getLatestAlphaVersion() {
 
 /* ======= clash meta stable ======= */
 const META_VERSION_URL =
-  "https://github.com/vffuunnyy/mihetero/releases/download/Prerelease-xhttp-release/version.txt";
+  "https://github.com/vffuunnyy/mihetero/releases/download/Prerelease-xhttp/version.txt";
 const META_URL_PREFIX = `https://github.com/vffuunnyy/mihetero/releases/download`;
 let META_VERSION;
 
